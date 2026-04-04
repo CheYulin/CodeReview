@@ -1,0 +1,9 @@
+# Local clones and intermediate diffs (regenerate with scripts/review-pr.sh)
+/workspace/
+/temp_repo/
+
+__pycache__/
+*.pyc
+
+# Log files (e.g. stderr.log, run.log)
+*.log
