@@ -32,6 +32,13 @@ def default_meta(pr_id: int) -> dict:
         "pr_url": f"https://{host}/{owner}/{repo}/pull/{pr_id}",
         "upstream_git": upstream,
         "issues": {},
+        "related": {
+            "description": "",
+            "issues": [],
+            "rfcs": [],
+            "closes": [],
+            "comment": "Link this PR to GitCode issues and RFCs; used in review prompt traceability.",
+        },
         "gitcode": {
             "comment": "Optional. api_base_url defaults to https://api.gitcode.com.",
             "api_base_url": "https://api.gitcode.com",

@@ -5,14 +5,23 @@
 ## 快速使用
 
 1. 安装 [Gemini CLI](https://github.com/google-gemini/gemini-cli)，执行 `gemini login`。
-2. **首次**跑某个 PR 号时，若不存在 `workspace/inputs/pr-<id>/meta.json`，[`review-pr.sh`](scripts/review-pr.sh) 会调用 [`scripts/lib/bootstrap_meta.py`](scripts/lib/bootstrap_meta.py) **自动生成模板**（无需手建文件）。生成后请按需改 `fork_fallback.branch`、`base_ref`/`head_ref` 等；字段说明见 [`docs/meta-json.md`](docs/meta-json.md)。可用环境变量覆盖默认仓库（如 `CODE_REVIEW_GITCODE_OWNER`、`CODE_REVIEW_GITCODE_REPO`、`CODE_REVIEW_UPSTREAM_GIT`）。
+2. **首次**跑某个 PR 号时，若不存在 `workspace/inputs/pr-<id>/meta.json`，[`review-pr.sh`](scripts/review-pr.sh) 会调用 [`bootstrap_meta.py`](scripts/lib/bootstrap_meta.py) **自动生成模板**。关联 Issue 可在命令行传入 **`--issues 234,233`**（见步骤 3），或编辑 meta 中的 **`related.issues` / `related.rfcs`**；字段说明见 [`docs/meta-json.md`](docs/meta-json.md)。可用环境变量覆盖默认仓库（如 `CODE_REVIEW_GITCODE_OWNER`、`CODE_REVIEW_GITCODE_REPO`、`CODE_REVIEW_UPSTREAM_GIT`）。
 3. 在仓库根目录执行：
 
 ```bash
+# 只指定 PR 号（默认会 bootstrap meta）
 ./scripts/review-pr.sh 449
-# 可选：同时保留 JSON
-./scripts/review-pr.sh 449 --json
+
+# 同时传入关联 Issue 号（逗号分隔，会写入 meta 并注入 Traceability）
+./scripts/review-pr.sh 470 --issues 234,233,235
+
+# 可选：RFC 链接用 | 分隔；同时输出 JSON
+./scripts/review-pr.sh 449 --issues 234 --rfcs 'https://example.com/rfc.md' --json
 ```
+
+Issue URL 由环境变量 `CODE_REVIEW_GITCODE_HOST`、`CODE_REVIEW_GITCODE_OWNER`、`CODE_REVIEW_GITCODE_REPO` 拼出（与 `bootstrap_meta.py` 一致）。详见 `./scripts/review-pr.sh --help`。
+
+**PR 源/目的与 API 校验（推荐）**：若已导出 **`GITCODE_TOKEN`**（与发帖 API 可用同一令牌），在生成 diff 之后会自动调用 [`scripts/lib/check_pr_refs.py`](scripts/lib/check_pr_refs.py)：请求 `GET .../pulls/<N>`，将接口返回的 **base/head 提交 SHA** 与本地 **`git rev-parse`** 在 `diff.base_ref` / `diff.head_ref` 上的结果比对；不一致则 **中止**（避免审错分支）。未设置 token 时跳过校验并打印说明。跳过校验：`--no-pr-check` 或 `CODE_REVIEW_SKIP_PR_CHECK=1`。单独自检：`./scripts/check-pr-refs.sh 470`。
 
 4. 阅读 [`results/pr-449/review.md`](results/pr-449/review.md)（及可选的 `review.json`）。
 
@@ -48,6 +57,7 @@ export GITCODE_TOKEN='你的令牌'
 | 环节 | 做法 |
 |------|------|
 | **仓库** | `scripts/lib/pr_diff.py` 在 `workspace/pr-<id>/repo` clone 或 **仅 fetch** 更新已有 clone，按 `meta.json` 拉取 PR 头分支，再 `git diff base...head` 写入 `diff.patch`。 |
+| **PR 校验** | 若设置 `GITCODE_TOKEN`，`check_pr_refs.py` 用 API 的 base/head **SHA** 对比本地 `diff.base_ref` / `diff.head_ref`，防止与网页 PR 不一致。 |
 | **提示词** | `gemini -p` 的内容由三文件拼接：**业务上下文** [`assets/prompts/system-pr-449.md`](assets/prompts/system-pr-449.md) + **审查 Gem** [`assets/gems/yuanrong-pr-review/GEM.md`](assets/gems/yuanrong-pr-review/GEM.md) + **证据型输出** [`assets/prompts/review-evidence-rubric.md`](assets/prompts/review-evidence-rubric.md)。可与网页版 **Gemini Gems** 共用同一套 Gem 文稿。 |
 | **模型输入** | **标准输入 = 仅 diff 文件**（`gemini` 的 `-p` 与 stdin 组合，与官方 headless 文档一致），避免超大 argv 与错误转义。 |
 | **身份** | 脚本内 `unset GEMINI_API_KEY`，走 CLI 登录态，而非 API Key。 |
@@ -64,7 +74,11 @@ export GITCODE_TOKEN='你的令牌'
 │   └── lib/
 │       ├── pr_diff.py              # clone/fetch、写 diff.patch
 │       ├── bootstrap_meta.py       # 首次生成 workspace/inputs/pr-*/meta.json
+│       ├── meta_links_prompt.py    # 从 meta 生成 Traceability 段并入提示词
+│       ├── merge_meta_cli.py       # 命令行 --issues/--rfcs 写入 meta
+│       ├── check_pr_refs.py        # GitCode API SHAs vs 本地 base_ref/head_ref
 │       └── post_gitcode_comment.py
+│   ├── check-pr-refs.sh            # 单独运行 PR ref 校验
 ├── docs/meta-json.md         # meta.json 字段说明
 ├── workspace/
 │   ├── inputs/pr-<id>/       # 本地 meta.json（与 workspace 一并忽略）

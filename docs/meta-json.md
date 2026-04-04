@@ -8,11 +8,45 @@
 |------|------|
 | `pr_url` | GitCode PR 页面，用于核对 base/head、发帖 API |
 | `upstream_git` | openeuler 官方仓库 clone 地址 |
-| `issues` | 可选；相关 issue 链接（审查上下文） |
+| `related` | **推荐**：与本 PR 的追溯信息，会注入 Gemini 提示词（见下） |
+| `issues` | 可选；**旧式** `{{ "name": "url" }}` 字典，仍会被合并进追溯块 |
 | `diff.base_ref` | 基线 ref（fetch 后存在），如 `origin/master` |
 | `diff.head_ref` | PR 头 ref，如 `pr-449-head` 或 `contributor/feature-xxx` |
 | `diff.exclude_paths` | 可选；传给 `git diff` 的排除 glob |
 | `diff.fetch` | 在 `workspace/pr-<id>/repo` 内执行的拉取步骤 |
+
+## `related`（PR ↔ Issue / RFC）
+
+`review-pr.sh` 会把本节内容拼进提示词末尾的 **Traceability** 段，要求审查结论在可行时 **对应到具体 Issue 或 RFC**。
+
+```json
+"related": {
+  "description": "One-line: what this PR is for (optional).",
+  "issues": [
+    "https://gitcode.com/openeuler/yuanrong-datasystem/issues/234",
+    { "title": "AR1 disk cache", "url": "https://gitcode.com/.../issues/234" }
+  ],
+  "rfcs": [
+    "https://example.com/rfc-secondary-cache.md"
+  ],
+  "closes": [234, 235]
+}
+```
+
+- **`issues` / `rfcs`**：字符串 URL，或带 `title`/`label` + `url` 的对象。
+- **`closes`**：可选；期望关闭或关联的 issue 编号或说明（展示用）。
+- 若留空，提示词会标明「未列出」，审查仍可进行，但建议在 PR 有明确关联时填上。
+
+### 命令行传入（推荐）
+
+无需手改文件即可写入 `related`：
+
+```bash
+./scripts/review-pr.sh 470 --issues 234,233,235
+./scripts/review-pr.sh 449 --issues 234 --rfcs 'https://example.com/a|https://example.com/b'
+```
+
+会调用 `merge_meta_cli.py` 更新 `workspace/inputs/pr-<id>/meta.json`，并同步 `pr_url` / `pr_number`。使用 `--issues` 时会**移除**旧式顶层 `issues` 字典，避免与 `related.issues` 重复。
 
 ## `fetch` 条目类型
 

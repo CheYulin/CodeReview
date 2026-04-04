@@ -19,8 +19,9 @@
 
 编辑本地 `workspace/inputs/pr-<id>/meta.json`：
 
-1. 若 `fetch` 里 `pr_head` 在 GitCode 上失败，改为 **fork_branch** 方式，填入贡献者仓库 URL 与 PR 实际分支名（见 [docs/meta-json.md](../docs/meta-json.md)）。
-2. 若需排除部分路径（如仅审 `src/`），在 `diff.exclude_paths` 中加入路径片段或留空表示全量 diff。
+1. 填写 **`related.issues`** / **`related.rfcs`**（及可选 **`related.description`**），与 PR 页面上关联的 Issue、RFC 或设计文档一致；审查提示词会注入 **Traceability** 段。
+2. 若 `fetch` 里 `pr_head` 在 GitCode 上失败，改为 **fork_branch** 方式，填入贡献者仓库 URL 与 PR 实际分支名（见 [docs/meta-json.md](../docs/meta-json.md)）。
+3. 若需排除部分路径（如仅审 `src/`），在 `diff.exclude_paths` 中加入路径片段或留空表示全量 diff。
 
 ## 4. 生成 diff 并运行审查
 
