@@ -45,12 +45,14 @@ def ensure_remote(git_dir: str, name: str, url: str) -> None:
 def _fetch_pr_head_refspecs(pr: int, local_branch: str, override: str | None) -> list[str]:
     if override:
         return [override]
+    # Prefix '+' forces update of local_branch when it diverged from a prior fetch.
     # GitHub / Gitea / some hosts; GitLab-style MR refs; GitCode often has none of these.
+    lb = local_branch
     return [
-        f"refs/pull/{pr}/head:{local_branch}",
-        f"pull/{pr}/head:{local_branch}",
-        f"refs/merge-requests/{pr}/head:{local_branch}",
-        f"merge-requests/{pr}/head:{local_branch}",
+        f"+refs/pull/{pr}/head:{lb}",
+        f"+pull/{pr}/head:{lb}",
+        f"+refs/merge-requests/{pr}/head:{lb}",
+        f"+merge-requests/{pr}/head:{lb}",
     ]
 
 
@@ -79,7 +81,7 @@ def apply_fetch_fork_branch(git_dir: str, item: dict[str, Any]) -> None:
     rb = item["remote_branch"]
     lb = item["local_branch"]
     ensure_remote(git_dir, rn, ru)
-    run(["git", "fetch", rn, f"{rb}:{lb}"], cwd=git_dir)
+    run(["git", "fetch", rn, f"+{rb}:{lb}"], cwd=git_dir)
 
 
 def apply_fetch(git_dir: str, item: dict[str, Any], meta: dict[str, Any]) -> None:
