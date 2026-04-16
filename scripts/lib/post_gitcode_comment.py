@@ -14,6 +14,18 @@ from pathlib import Path
 from typing import Any
 
 
+def resolve_default_review_md(results_pr_dir: Path) -> Path | None:
+    """Prefer review.md (often symlink to latest); else newest review-*.md by mtime."""
+    direct = results_pr_dir / "review.md"
+    if direct.is_file():
+        return direct
+    candidates = sorted(
+        results_pr_dir.glob("review-*.md"),
+        key=lambda p: p.stat().st_mtime,
+    )
+    return candidates[-1] if candidates else None
+
+
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -47,7 +59,13 @@ def default_banner() -> str:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Post review.md to GitCode PR as a comment.")
+    ap = argparse.ArgumentParser(
+        description=(
+            "Post PR review markdown to GitCode as a comment. "
+            "Without --review: uses results/pr-<id>/review.md if present, else the newest "
+            "review-*.md by modification time."
+        ),
+    )
     ap.add_argument(
         "pr_folder_id",
         nargs="?",
@@ -57,7 +75,11 @@ def main() -> None:
         help="Folder id under workspace/inputs/ and results/ (e.g. 449)",
     )
     ap.add_argument("--meta", type=Path, help="Path to workspace/inputs/pr-*/meta.json")
-    ap.add_argument("--review", type=Path, help="Path to review markdown file")
+    ap.add_argument(
+        "--review",
+        type=Path,
+        help="Explicit review .md path (default: auto-select latest as described in --help)",
+    )
     ap.add_argument(
         "--pr-id",
         type=int,
@@ -72,7 +94,12 @@ def main() -> None:
     root = repo_root()
     pr_id = args.pr_folder_id or args.pr_id_flag or 449
     meta_path = args.meta or root / "workspace" / "inputs" / f"pr-{pr_id}" / "meta.json"
-    review_path = args.review or root / "results" / f"pr-{pr_id}" / "review.md"
+    results_pr = root / "results" / f"pr-{pr_id}"
+    if args.review is not None:
+        review_path = args.review
+    else:
+        resolved = resolve_default_review_md(results_pr)
+        review_path = resolved or (results_pr / "review.md")
 
     if not meta_path.is_file():
         if args.meta is not None:
@@ -86,6 +113,8 @@ def main() -> None:
         sys.exit(f"Missing meta: {meta_path}")
     if not review_path.is_file():
         sys.exit(f"Missing review: {review_path}")
+
+    print(f"Review file: {review_path.resolve()}", file=sys.stderr)
 
     with open(meta_path, encoding="utf-8") as f:
         meta = json.load(f)

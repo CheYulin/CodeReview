@@ -126,6 +126,11 @@ done
 
 mkdir -p "${WS}" "${RESULTS}"
 
+# 每次审查写入独立文件，便于同一 PR 多次审查对比；review.md 为指向最新一次的符号链接
+REVIEW_TS="$(date +%Y%m%dT%H%M%S)"
+REVIEW_MD_BASENAME="review-${REVIEW_TS}.md"
+REVIEW_MD="${RESULTS}/${REVIEW_MD_BASENAME}"
+
 {
   echo "======== $(date -Iseconds) ========"
   echo "PR_ID=${PR_ID} JSON_OUT=${JSON_OUT}"
@@ -163,15 +168,16 @@ fi
 
 echo "Running Gemini (stdin = diff; -p = system + GEM + evidence rubric) ..."
 if [[ "${JSON_OUT}" -eq 1 ]]; then
-  gemini -p "${PROMPT_TEXT}" --output-format json < "${DIFF_OUT}" > "${RESULTS}/review.json" 2> "${STDERR_LOG}"
-  python3 - "${RESULTS}" <<'PY'
+  JSON_BASENAME="review-${REVIEW_TS}.json"
+  gemini -p "${PROMPT_TEXT}" --output-format json < "${DIFF_OUT}" > "${RESULTS}/${JSON_BASENAME}" 2> "${STDERR_LOG}"
+  python3 - "${RESULTS}" "${REVIEW_TS}" <<'PY'
 import json
 import os
 import sys
 
-root = sys.argv[1]
-json_path = os.path.join(root, "review.json")
-md_path = os.path.join(root, "review.md")
+root, ts = sys.argv[1], sys.argv[2]
+json_path = os.path.join(root, f"review-{ts}.json")
+md_path = os.path.join(root, f"review-{ts}.md")
 with open(json_path, encoding="utf-8") as f:
     data = json.load(f)
 text = data.get("response", data) if isinstance(data, dict) else str(data)
@@ -180,10 +186,13 @@ if not isinstance(text, str):
 with open(md_path, "w", encoding="utf-8") as out:
     out.write(text)
 PY
-  echo "Wrote ${RESULTS}/review.json and ${RESULTS}/review.md"
+  (cd "${RESULTS}" && ln -sf "${JSON_BASENAME}" review.json)
+  (cd "${RESULTS}" && ln -sf "${REVIEW_MD_BASENAME}" review.md)
+  echo "Wrote ${RESULTS}/${JSON_BASENAME} and ${REVIEW_MD} (symlinks review.json / review.md -> latest)"
 else
-  gemini -p "${PROMPT_TEXT}" < "${DIFF_OUT}" > "${RESULTS}/review.md" 2> "${STDERR_LOG}"
-  echo "Wrote ${RESULTS}/review.md"
+  gemini -p "${PROMPT_TEXT}" < "${DIFF_OUT}" > "${REVIEW_MD}" 2> "${STDERR_LOG}"
+  (cd "${RESULTS}" && ln -sf "${REVIEW_MD_BASENAME}" review.md)
+  echo "Wrote ${REVIEW_MD} (symlink review.md -> this file)"
 fi
 
 if [[ -s "${STDERR_LOG}" ]]; then

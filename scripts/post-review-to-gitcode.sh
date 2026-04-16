@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# Post results/pr-<id>/review.md to GitCode PR as an API comment.
+# Post the latest PR review markdown to GitCode as an API comment.
+#
+# Default review file (no extra args): results/pr-<id>/review.md if present (usually a symlink
+# to the latest review-<timestamp>.md from review-pr.sh); otherwise the newest review-*.md by
+# mtime. Use --review only when you want a specific file.
 #
 # Requires: GITCODE_TOKEN (or GITCODE_PRIVATE_TOKEN) — personal access token with PR comment scope.
 # Optional: GITCODE_API_BASE_URL (default https://api.gitcode.com)
