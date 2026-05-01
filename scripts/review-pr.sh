@@ -137,17 +137,26 @@ REVIEW_MD="${RESULTS}/${REVIEW_MD_BASENAME}"
   echo "META_PATH=${META_PATH}"
   [[ -n "${ISSUES_CSV}" ]] && echo "ISSUES=${ISSUES_CSV}"
   [[ -n "${RFCS_PSV}" ]] && echo "RFCS=${RFCS_PSV}"
+
+  # First check/fix PR refs before generating diff (check may update meta.json base_ref)
+  if [[ "${NO_PR_CHECK}" -eq 0 ]] && [[ "${CODE_REVIEW_SKIP_PR_CHECK:-0}" != "1" ]] && [[ -d "${GIT_DIR}/.git" ]]; then
+    echo "Checking PR base/head SHAs vs GitCode API (scripts/lib/check_pr_refs.py) ..."
+    if python3 "${REPO_ROOT}/scripts/lib/check_pr_refs.py" --meta "${META_PATH}" --git-dir "${GIT_DIR}"; then
+      : # OK, proceed to diff
+    elif [[ $? -eq 3 ]]; then
+      # Meta was updated, need to regenerate diff
+      echo "Meta updated, regenerating diff ..."
+    else
+      exit $?
+    fi
+  fi
+
   echo "Generating diff ..."
   python3 "${REPO_ROOT}/scripts/lib/pr_diff.py" "${META_PATH}" "${GIT_DIR}" "${DIFF_OUT}"
 } 2>&1 | tee -a "${LOG}"
 
 if [[ ! -s "${DIFF_OUT}" ]]; then
   echo "Warning: ${DIFF_OUT} is empty — check base_ref/head_ref and fetch steps in meta.json" >&2
-fi
-
-if [[ "${NO_PR_CHECK}" -eq 0 ]] && [[ "${CODE_REVIEW_SKIP_PR_CHECK:-0}" != "1" ]] && [[ -d "${GIT_DIR}/.git" ]]; then
-  echo "Checking PR base/head SHAs vs GitCode API (scripts/lib/check_pr_refs.py) ..."
-  python3 "${REPO_ROOT}/scripts/lib/check_pr_refs.py" --meta "${META_PATH}" --git-dir "${GIT_DIR}" || exit $?
 fi
 
 PROMPT_TEXT=$(cat "${PROMPT_SYSTEM}" "${PROMPT_GEM}" "${PROMPT_RUBRIC}")
