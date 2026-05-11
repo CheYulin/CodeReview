@@ -8,6 +8,11 @@
 # Requires: GITCODE_TOKEN (or GITCODE_PRIVATE_TOKEN) — personal access token with PR comment scope.
 # Optional: GITCODE_API_BASE_URL (default https://api.gitcode.com)
 #
+# NOTE: For line-specific (inline) comments, use:
+#   ./scripts/post-review-inline.sh <pr-id> [--dry-run]
+# That script parses Section E findings and posts each as a line comment when the path+line
+# can be resolved from the diff.patch. Falls back to general comments automatically.
+#
 # Usage:
 #   export GITCODE_TOKEN=xxxx
 #   ./scripts/post-review-to-gitcode.sh 449

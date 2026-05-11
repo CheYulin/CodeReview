@@ -49,4 +49,23 @@ description: >-
 
 ## 自动化
 
-仓库根目录：`./scripts/review-pr.sh 449`。详见 [plans/pr-449-gemini-review.md](../../../plans/pr-449-gemini-review.md)。
+### 审查生成
+
+```bash
+./scripts/review-pr.sh <pr-id> [--issues N,N...] [--rfcs 'URL|URL...']
+```
+
+### 评论发布
+
+| 方式 | 脚本 | 说明 |
+|------|------|------|
+| 整体评论 | `./scripts/post-review-to-gitcode.sh <pr-id>` | 将完整 review.md 作为一条 PR 评论发布 |
+| **行内评论** | `./scripts/post-review-inline.sh <pr-id> [--dry-run]` | 解析 Section E findings，尝试发布到对应代码行；无法定位时自动降级为一般评论 |
+
+行内评论工作流：
+1. 解析 `review.md` 中 Section E 的 `位置：path:line` 字段
+2. 通过 `diff.patch` 映射到 GitCode PR 的绝对行号
+3. 使用指纹去重，避免重复评论
+4. 支持 `--dry-run` 预览，`--fallback-only` 跳过行内直接发布一般评论
+
+详见 [plans/pr-449-gemini-review.md](../../../plans/pr-449-gemini-review.md)。
